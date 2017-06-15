@@ -11,10 +11,9 @@ from setuptools.command.install import install
 import pkg_resources
 
 
-#TODO: fill in these
-__pkg_name__ = ''
-__author__ = ''
-__description__ = ''
+__pkg_name__ = 'mako'
+__author__ = 'cwright'
+__description__ = 'Simple squiggle tagging.'
 
 
 __path__ = os.path.dirname(__file__)
@@ -37,31 +36,17 @@ install_requires = []
 with open(os.path.join(dir_path, 'requirements.txt')) as fh:
     reqs = (
         r.split('#')[0].strip()
-        for r in fh.read().splitlines() if not r.strip().startswith('#')
+        for r in fh.read().splitlines() if not r.startswith('#')
     )
-    # Allow specifying git repos
     for req in reqs:
+        if req == '':
+            continue
         if req.startswith('git+https'):
-            req.split('/')[-1].split('@')[0]
-    install_requires.append(req)
+            req = req.split('/')[-1].split('@')[0]
+        install_requires.append(req)
 
-
-extra_requires = {
-    #TODO: any optional requirements
-}
-
-
-
+extra_requires = {}
 extensions = []
-#TODO: compile any extensions
-#extensions.append(Extension(
-#    'name',
-#    sources=[]
-#    include_dirs=[],
-#    extra_compile_args=['-pedantic', '-Wall', '-std=c99', '-march=native', '-ffast-math', '-DUSE_SSE2', '-DNDEBUG'],
-#    libraries=[] #e.g. 'blas'
-#))
-
 
 setup(
     name=__pkg_name__,
@@ -77,18 +62,15 @@ setup(
     extras_require=extra_requires,
     # don't include any testing subpackages in dist
     packages=find_packages(exclude=['*.test', '*.test.*', 'test.*', 'test']),
-    package_data={},
+    package_data={
+        __pkg_name__:[os.path.join('data','*')],
+    },
     zip_safe=False,
-    data_files=[
-        #TODO: Probably won't have these, use package_data in most cases 
-    ],
+    data_files=[],
     entry_points={
         'console_scripts': [
-            #TODO: add entry points
-            #'name' = {}.package.module:function'.format(__pkg_name__)
+            '{} = {}.{}:main'.format(__pkg_name__, __pkg_name__, __pkg_name__)
         ]
     },
-    scripts=[
-        #TODO: Probably won't have these, use entry_points
-    ]
+    scripts=[]
 )

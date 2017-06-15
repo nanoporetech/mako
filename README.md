@@ -1,39 +1,28 @@
-Prototype real-time analysis components
-=======================================
+Mako
+====
 
-[![Build Status](https://travis-ci.org/nanoporetech/pomoxis.svg?branch=master)](https://travis-ci.org/nanoporetech/pomoxis)
+Mako is a software package for squiggle tagging. It can be used to train a
+model to recognise small panels of analytes from their squiggles.
 
-Pomoxis contains a set of services to perform analysis of squiggles as they are
-produced in real-time along with fast pipelines for generating draft assemblies.
+Installation
+------------
 
-Documentation can be found at https://nanoporetech.github.io/pomoxis/.
-  
+Mako is written in python, as such you will need a working python installation,
+The following instructions can be followed to install and run the software on
+Windows. (Users of other operating systems can likely skip to step 3.). 
 
-Build
------
+1. Download and install python 3.6 (64bit):
+   https://www.python.org/ftp/python/3.6.4/python-3.6.4-amd64.exe
+2. Run the above, checking any and all checkboxes through the installation,
+   explicitly:
+   i.      Install launcher for all users
+   ii.      Add Python 3.6 to PATH
+   iii.      Customize installation
+   iv.      Tick everything, then next
+   v.      Click everything, then next
+3. Download and unpack the software, open a command prompt and run:
 
-Pomoxis should be installed inside a virtual environment. A Makefile is
-provided to fetch, compile and install all direct dependencies into an
-environment.
-
-To setup the environment run:
-
-    git clone --recursive https://git/research/pomoxis.git
-    cd pomoxis
-    make install
-    . ./venv/bin/activate
-
-
-Extras
-------
-
-The distribution bundles some common bioinformatics tools (some of which are not
-currently used by pomoxis itself):
-
-* miniasm
-* minimap
-* racon
-* bwa
-* samtools
-
-These will be compiled and installed into the virtual environment created as above.
+    cd <where the software is located>    
+    pip install keras fast5_research tensorflow --user
+    pip install .
+    mako predict path/to/reads output.txt
