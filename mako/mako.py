@@ -296,11 +296,12 @@ def load_data(datasets, max_len, channels='all', limit=None, channel_limit=None)
     labels = []
     for i, dataset in enumerate(datasets):
         label, path = dataset.split(":")
-        print("Reading dataset {} from {}, channels:{}, limit:{}".format(label, path, channels, limit))
+        logger.info("Reading dataset {} from {}, channels:{}, limit:{}".format(label, path, channels, limit))
         labels.append(label)
         raw = [x.get_read(raw=True) for x in _fast5_filter(path, channels, limit=limit, channel_limit=channel_limit)]
         if len(raw) == 0:
             raise RuntimeError("No data found for dataset {}.".format(dataset))
+        logger.info("Got {} samples for '{}'.".format(len(raw), label))
         raw = _pad_and_scale(raw, max_len)
         x_train.append(raw)
         y_train.extend([i]*len(raw))
@@ -330,7 +331,7 @@ def main():
     warnings.simplefilter("ignore", category=FutureWarning)
     warnings.simplefilter("ignore", category=DeprecationWarning)
     logging.basicConfig(format='[%(asctime)s - %(name)s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
-    parser = argparse.ArgumentParser(description='minicall - a minimal pirate basecaller.')
+    parser = argparse.ArgumentParser(description='mako - short analyte tagger')
 
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument('--cudnn', action='store_true',
@@ -346,7 +347,8 @@ def main():
     subparsers.required = True
   
     training = subparsers.add_parser('train', help='Train a basecaller.', parents=[common])
-    training.add_argument('datasets', nargs='+', help="datasets in form 'label:folder'.")
+    training.add_argument('datasets', nargs='+', help="Datasets in form 'label:folder'.")
+    training.add_argument('--dataset', help='Save/load prepared dataset.')
     training.add_argument('--weights', help='Initial weights (perhaps from previous training).')
     training.add_argument('--output', default='training', help='Output folder.')
     training.add_argument('--max_len', type=int, default=1500, help='Maximum signal length.')
@@ -366,9 +368,12 @@ def main():
         help='Model file from training.')
     predict.add_argument('--limit', default=None, type=int,
         help='Number of input examples to process.')
-    predict.add_argument('--pass_filter', default=0.95, type=float,
-        help="Simple filter on classification score, reads not meeting this "
-             "filter will be labelled 'unknown'.")
+    predict.add_argument('--pass_filter', default=0.256, type=float,
+        help="Simple filter on classification entropy, reads not meeting this "
+             "filter will be tagged as pass=0 in output summary. The default "
+             "value is chosen to give ~0.25% classification error. Setting a "
+             "smaller value will decrease error at the expense of discarding "
+             "data.")
 
     args = parser.parse_args()
     commands = ('train', 'predict')
@@ -379,10 +384,26 @@ def main():
         if os.path.isdir(args.output):
             raise RuntimeError("Output directory already exists, refusing to overwrite.")
         os.mkdir(args.output)
-        x, y, labels = load_data(args.datasets, args.max_len,
-            channels=args.channels, limit=args.limit, channel_limit=args.channel_limit)
+        if args.dataset is not None and os.path.isfile(args.dataset):
+            logger.info('Loading pre-created dataset {}.'.format(args.dataset))
+            with h5py.File(args.dataset, 'r') as h:
+                x, y = h['x'][()], h['y'][()]
+                labels = [l.decode() for l in h.attrs['labels']]
+        else:
+            logger.info('Loading datasets.')
+            x, y, labels = load_data(args.datasets, args.max_len,
+                channels=args.channels, limit=args.limit, channel_limit=args.channel_limit)
+            if args.dataset is not None:
+                logger.info('Saving dataset to {}.'.format(args.dataset))
+                with h5py.File(args.dataset, 'w') as h:
+                    h['x'] = x
+                    h['y'] = y
+                    h.attrs['labels'] = np.array([l.encode() for l in labels])
+
+        # run training and save model
         final_model = train(x, y, len(labels),
             args.output, cudnn=args.cudnn, weights=args.weights)
+        logger.info('Appending meta info to final model: {}.'.format(final_model))
         with h5py.File(final_model, 'a') as h:
             h.attrs['labels'] = np.array([l.encode() for l in labels])
             h.attrs['max_len'] = args.max_len
@@ -413,9 +434,9 @@ def main():
                     best = np.argmax(results)
                     best_score = results[best]
                     best_label = caller.labels[best]
-                    passed = int(best_score > args.pass_filter)
+                    passed = entropy < args.pass_filter
                     output.write('\t'.join(str(x)
-                        for x in (filename, best_label, best_score, passed, entropy, *results)
+                        for x in (filename, best_label, best_score, int(passed), entropy, *results)
                     ))
                     output.write("\n")
 
