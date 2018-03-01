@@ -410,33 +410,63 @@ def main():
             h.attrs['cudnn'] = args.cudnn
 
     elif args.command == 'predict':
+        def data_from_fh(fh):
+            raw = fh.get_read(raw=True)
+            summary = {
+                k.decode() if isinstance(k, bytes) else k:
+                v.decode() if isinstance(v, bytes) else v
+                for k, v in fh.summary().items()
+            }
+            med, mad = med_mad(raw)
+            summary['median_current'] = med
+            summary['stdv_current'] = mad
+            return raw, summary
+
         def batcher():
             data = (
-                (x.get_read(raw=True), x.filename)
+                data_from_fh(x)
                 for x in _fast5_filter(args.input, limit=args.limit, channels=args.channels, recursive=True)
             )
             yield from group(data, args.batch_size)
 
+        def get_summary(fname):
+            with Fast5(fname, 'r') as h:
+                return h.summary()
+
+        # determine summary data fields
+        _, peek = next(next(batcher()))
+        summary_keys = list(peek.keys())
+        for k in ('filename', 'read_id'):
+            try:
+                summary_keys.remove(k)
+            except:
+                pass
+            else:
+                summary_keys.insert(0, k)
+
+
         caller = Demultiplexer(model_file=args.model_file)
         with open(args.output, 'w') as output:
-            output.write('\t'.join([
-                'filename', 'classification', 'score', 'pass', 'entropy'] +
+            output.write('\t'.join(
+                summary_keys +
+                ['classification', 'score', 'pass', 'entropy'] +
                 ['score_{}'.format(x) for x in caller.labels]
             ))
             output.write("\n")
             for i, batch in enumerate(batcher(), 1):
                 logger.info('Processing batch {}.'.format(i))
                 logger.info('Reading data...') 
-                squiggles, filenames = zip(*list(batch))
+                squiggles, summaries = zip(*list(batch))
                 logger.info('Performing classification...')
-                for filename, results  in zip(filenames, caller.call_many(squiggles)):
+                for summary, results  in zip(summaries, caller.call_many(squiggles)):
                     entropy = -np.sum(np.dot(results, np.log(results)))
                     best = np.argmax(results)
                     best_score = results[best]
                     best_label = caller.labels[best]
                     passed = entropy < args.pass_filter
+                    summary_values = [summary[k] for k in summary_keys]
                     output.write('\t'.join(str(x)
-                        for x in (filename, best_label, best_score, int(passed), entropy, *results)
+                        for x in (*summary_values, best_label, best_score, int(passed), entropy, *results)
                     ))
                     output.write("\n")
 
