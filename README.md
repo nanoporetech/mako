@@ -15,14 +15,14 @@ Windows. (Users of other operating systems can likely skip to step 3.).
    https://www.python.org/ftp/python/3.6.4/python-3.6.4-amd64.exe
 2. Run the above, checking any and all checkboxes through the installation,
    explicitly:
-   i.      Install launcher for all users
-   ii.      Add Python 3.6 to PATH
-   iii.      Customize installation
-   iv.      Tick everything, then next
-   v.      Click everything, then next
+      1. Install launcher for all users
+      2. Chooseto add Python 3.6 to PATH
+      3. Clivk Customize installation
+      4. Tick everything, then next
+      5. Click everything, then next
 3. Download and unpack the software, open a command prompt and run:
-
-    cd <where the software is located>    
-    pip install keras fast5_research tensorflow --user
+    ```
+    cd <where the software is located>
     pip install .
     mako predict path/to/reads output.txt
+    ````
