@@ -20,7 +20,10 @@ Windows. (Users of other operating systems can likely skip to step 3.).
       3. Clivk Customize installation
       4. Tick everything, then next
       5. Click everything, then next
-3. Download and unpack the software, open a command prompt and run:
+3. Download and install the Microsoft C++ redistributable 2015 from
+   https://www.microsoft.com/en-gb/download/details.aspx?id=48145. Be sure to
+   download the 64bit version named 'vc_redist.x64.exe'.
+4. Download and unpack the software, open a command prompt and run:
     ```
     cd <where the software is located>
     pip install .

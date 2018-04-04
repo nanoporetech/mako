@@ -11,5 +11,5 @@ venv/bin/activate:
 	${IN_VENV} && pip install -r requirements.txt
 
 install: venv
-	${IN_VENV} python setup.py install
+	${IN_VENV} && python setup.py install
 
