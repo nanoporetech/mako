@@ -1,3 +1,4 @@
-fast5_research==1.0.10
+fast5_research
 keras
+numpy
 tensorflow
