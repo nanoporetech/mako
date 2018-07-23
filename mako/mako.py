@@ -270,7 +270,16 @@ def _fast5_filter(path, channels='all', recursive=False, limit=None, channel_lim
                 counters[channel] += 1
                 yield x
 
-    gen = iterate_fast5(path, recursive=recursive)
+    def _valid_file(base):
+        for fname in base:
+            try:
+                fh = Fast5(fname)
+            except Exception as e:
+                logger.warn('Could not open {}.'.format(fname))
+            else:
+                yield fh
+
+    gen = _valid_file(iterate_fast5(path, paths=True, recursive=recursive))
     if channels != 'all':
         gen = _odd_even_filter(gen)
     if channel_limit is not None:
@@ -411,30 +420,33 @@ def main():
 
     elif args.command == 'predict':
         def data_from_fh(fh):
-            raw = fh.get_read(raw=True)
-            summary = {
-                k.decode() if isinstance(k, bytes) else k:
-                v.decode() if isinstance(v, bytes) else v
-                for k, v in fh.summary().items()
-            }
-            med, mad = med_mad(raw)
-            summary['median_current'] = med
-            summary['stdv_current'] = mad
-            return raw, summary
+            try:
+                raw = fh.get_read(raw=True)
+                summary = fh.summary()
+                med, mad = med_mad(raw)
+                summary['median_current'] = med
+                summary['stdv_current'] = mad
+            except:
+                logging.warn("Error extracting data from {}.".format(fh.filename))
+                return None
+            else:
+                return raw, summary
 
         def batcher():
             data = (
                 data_from_fh(x)
                 for x in _fast5_filter(args.input, limit=args.limit, channels=args.channels, recursive=True)
             )
-            yield from group(data, args.batch_size)
+            filtered = (x for x in data if x is not None)
+            yield from group(filtered, args.batch_size)
 
-        def get_summary(fname):
-            with Fast5(fname, 'r') as h:
-                return h.summary()
 
         # determine summary data fields
-        _, peek = next(next(batcher()))
+        try:
+            _, peek = next(next(batcher()))
+        except StopIteration:
+            logger.error('No valid files found.')
+            sys.exit(1)
         summary_keys = list(peek.keys())
         for k in ('filename', 'read_id'):
             try:
